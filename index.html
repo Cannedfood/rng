@@ -1,0 +1,255 @@
+<!--
+Copyright 2020 Benno Straub
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+	<!-- PWA -->
+	<link rel="manifest" href="manifest.json" />
+	<link rel="apple-touch-icon" href="images/icons/icon-512x512.png" />
+	<meta name="apple-mobile-web-app-status-bar" content="#ffffff" />
+	<meta name="theme-color" content="#ffffff" />
+
+	<title>Random Note and Value Generator</title>
+</head>
+<body>
+	<div id="content">
+		<a id="currentValue" href="#" onclick="nextValue()"></a>
+		<textarea id="selectionText" onchange="updateSelection()" type="text"></textarea>
+		<div>
+			<h3>Presets</h3>
+			<div id="presets"></div>
+		</div>
+	</div>
+
+	<script>
+		let currentValue = document.getElementById("currentValue");
+		let selectionText = document.getElementById("selectionText");
+		let presets = document.getElementById("presets");
+
+		let selection = [];
+
+		function setValues(text) {
+			selectionText.value = text;
+			updateSelection();
+		}
+
+		function updateSelection() {
+			selection = selectionText.value.split('\n').map(line => line.split(';'));
+			if(selection.length > 0) {
+				nextValue();
+			}
+		}
+
+		function nextValue() {
+			let entropy = 1;
+			selection.forEach(group => entropy *= group.length);
+
+
+			let text = "";
+			do {
+				text = "";
+				for (const group of selection) {
+					text += pickRandom(group);
+				}
+			} while(entropy > 1 && text == currentValue.innerText);
+
+			currentValue.innerText = text;
+			currentValue.classList.add("slide-in");
+			setTimeout(function() {
+				currentValue.classList.remove("slide-in");
+			}, 300);
+		}
+
+		function pickRandom(items) { return items[Math.floor(Math.random() * items.length)] }
+
+		function getPresetGroup(name) {
+			let className = "group-" + name;
+			let group = document.querySelector("div." + className)
+
+			if(!group) {
+				group = document.createElement('div');
+				group.classList.add(className);
+
+				let header = document.createElement("h4");
+				header.classList.add("group-title");
+				header.innerText = name;
+				group.appendChild(header);
+
+				let content = document.createElement("div");
+				content.classList.add("group-content");
+				group.appendChild(content);
+
+				presets.appendChild(group);
+			}
+
+			return group.getElementsByClassName("group-content").item(0);
+		}
+
+		function addPreset(name, group, selection) {
+			let text;
+			if(selection instanceof String)
+				text = selection;
+			else
+				text = selection.map(group => group.join(';')).join('\n');
+
+			let groupElement = getPresetGroup(group);
+
+			let newPresetButton = document.createElement("a");
+			newPresetButton.href = "#";
+			newPresetButton.innerText = name;
+			newPresetButton.onclick = function() { setValues(text); };
+			groupElement.appendChild(newPresetButton);
+		}
+
+		updateSelection()
+	</script>
+
+	<script id="DefaultPresets">
+		addPreset("Digits",   "general", [[..."1234567890"]])
+		addPreset("Alphabet", "general", [[..."ABCDEFGHIJKLMNOPQRSTUVWXYZ"]])
+	</script>
+
+	<script id="MusicPresetUtils">
+		function noteRange(minNote, maxNote, sharpsAndFlats, lowerFlat, upperSharp) {
+			let result = []
+
+			const start = toNoteIndex(minNote);
+			const end   = toNoteIndex(maxNote);
+			for(let idx = start; idx <= end; ++idx) {
+				if(sharpsAndFlats && (idx != start || lowerFlat)) result.push(toNote(idx, 'b'));
+
+				result.push(toNote(idx));
+
+				if(sharpsAndFlats && (idx != end || upperSharp))   result.push(toNote(idx, '#'));
+			}
+			return result;
+
+			function toNoteIndex(note) { let [a, b] = note.split(''); let quality = "CDEFGAB".indexOf(a); let octave = b; return octave * 7 + quality; }
+			function toNote(index, sign) { return "CDEFGAB".charAt(index % 7) + (sign || '') + Math.floor(index / 7); }
+		}
+	</script>
+
+	<script id="MusicPresets">
+		addPreset("Notes",                           "music", [ [..."ABCDEFG"]])
+		addPreset("Intervals",                       "music", [ ["1", "m2", "M2", "m3", "M3", "4", "aug4", "dim5", "5", "m6", "M6", "m7", "M7", "8"] ])
+		addPreset("Extended Intervals",              "music", [ ["1", "m2", "M2", "m3", "M3", "4", "#4", "b5", "5", "m6", "M6", "m7", "M7", "8", "m9 (m2)", "M9 (M2)", "m10 (m3)", "M10 (M3)", "11 (4)", "#11 (#4)", "b12 (b5)", "12 (5)", "m13 (m6)", "M13 (M6)", "m14 (m7)", "M15 (M7)"] ])
+		addPreset("Modes",                           "music", [ ["Ionian (major)", "Dorian", "Phrygian", "Lydian", "Mixolydian", "Aeolian (minor)", "Locrian"] ])
+		addPreset("Modes (harmonic minor)",          "music", [ ["Harmonic Minor", "Locrian #6", "Ionian #5", "Dorian #4", "Phrygian Dominant", "Lydian #2", "Superlocrian"] ])
+		addPreset("Modes (harmonic minor) /w hints", "music", [ ["Harmonic Minor (minor #7)", "Locrian #6", "Ionian #5", "Dorian #4", "Phrygian Dominant (Phrygian #3)", "Lydian #2", "Superlocrian (Locrian #4)"] ])
+	</script>
+
+	<script id="GuitarPresets">
+		addPreset("E-String (Lo)",     "guitar-strings", [noteRange('E2', 'E3')])
+		addPreset("A-String",     "guitar-strings", [noteRange('A2', 'A3')])
+		addPreset("D-String",     "guitar-strings", [noteRange('D3', 'D4')])
+		addPreset("G-String",     "guitar-strings", [noteRange('G3', 'G4')])
+		addPreset("B-String",     "guitar-strings", [noteRange('B3', 'G4')])
+		addPreset("E-String (Hi)",     "guitar-strings", [noteRange('E4', 'E5')])
+
+		addPreset("Frets 0  - 3",  "guitar-frets", [noteRange('E2', 'G4')])
+		addPreset("Frets 3  - 6",  "guitar-frets", [noteRange('G2', 'A4', false, false, true)])
+		addPreset("Frets 5  - 8",  "guitar-frets", [noteRange('A2', 'C5')])
+		addPreset("Frets 7  - 10", "guitar-frets", [noteRange('B2', 'D5')])
+		addPreset("Frets 9  - 12", "guitar-frets", [noteRange('D3', 'E5', false, true, false)])
+
+		addPreset("Frets 12 - 15", "guitar-frets", [noteRange('E3', 'G5')])
+		addPreset("Frets 15 - 18", "guitar-frets", [noteRange('G3', 'A5', false, false, true)])
+		addPreset("Frets 17 - 20", "guitar-frets", [noteRange('A3', 'C6')])
+		addPreset("Frets 19 - 22", "guitar-frets", [noteRange('B3', 'D6')])
+		addPreset("Frets 21 - 24", "guitar-frets", [noteRange('D4', 'E6', false, true, false)])
+	</script>
+
+<script id="ExtendedGuitarPresets">
+		addPreset("B-String (Lo)",     "guitar-strings7", [noteRange('B3', 'G4')])
+		addPreset("A-String (Lo)",     "guitar-strings7", [noteRange('A1', 'A2')])
+		addPreset("G-String (Lo)",     "guitar-strings7", [noteRange('G1', 'G2')])
+
+		// addPreset("Frets 0  - 3",  "guitar-frets", [noteRange('E2', 'G4')])
+		// addPreset("Frets 3  - 6",  "guitar-frets", [noteRange('G2', 'A4', false, false, true)])
+		// addPreset("Frets 5  - 8",  "guitar-frets", [noteRange('A2', 'C5')])
+		// addPreset("Frets 7  - 10", "guitar-frets", [noteRange('B2', 'D5')])
+		// addPreset("Frets 9  - 12", "guitar-frets", [noteRange('D3', 'E5', false, true, false)])
+
+		// addPreset("Frets 12 - 15", "guitar-frets2", [noteRange('E3', 'G5')])
+		// addPreset("Frets 15 - 18", "guitar-frets2", [noteRange('G3', 'A5', false, false, true)])
+		// addPreset("Frets 17 - 20", "guitar-frets2", [noteRange('A3', 'C6')])
+		// addPreset("Frets 19 - 22", "guitar-frets2", [noteRange('B3', 'D6')])
+		// addPreset("Frets 21 - 24", "guitar-frets2", [noteRange('D4', 'E6', false, true, false)])
+	</script>
+
+	<style>
+		body {
+			font-family: Arial, Helvetica, sans-serif;
+		}
+
+		#content {
+			text-align: center;
+		}
+
+		#selectionText {
+			width: 80%;
+			max-width: 40em;
+			min-height: 6em;
+			text-align: center;
+		}
+
+		#currentValue {
+			font-size: 4em;
+			display: block;
+			padding: 2em 1em;
+			text-align: center;
+			font-variant: normal;
+			color: black;
+			text-decoration: solid;
+		}
+
+		#presets {
+			display: flex;
+			flex-direction: column;
+			flex-wrap: nowrap;
+		}
+
+		#presets .group-content {
+			display: flex;
+			flex-direction: row;
+			flex-wrap: wrap;
+			justify-content: center;
+		}
+
+		#presets a {
+			font-variant: normal;
+			text-decoration: solid;
+			color: white;
+			background-color: darkblue;
+			padding: .5em;
+			border-radius: .2em;
+			margin: 1px;
+		}
+
+		@keyframes currentValueKeyframes {
+			from { transform: translateY(1em); opacity: 0; }
+			to   { transform: translateY(0em); opacity: 1; }
+		}
+		.slide-in {
+			animation: currentValueKeyframes 100ms ease-in;
+		}
+	</style>
+</body>
+</html>
