@@ -127,7 +127,16 @@ limitations under the License.
 			return group.getElementsByClassName("group-content").item(0);
 		}
 
-		function addPreset(name, group, selection) {
+		function addPreset(name, group, selection, separator) {
+			if(separator) {
+				selection = selection.map((group, i) => {
+					if(i == selection.length - 1) // Last group doesn't need separators
+						return group;
+					else
+						return group.map(elem => elem + separator);
+				});
+			}
+
 			let text;
 			if(selection instanceof String)
 				text = selection;
@@ -197,6 +206,7 @@ limitations under the License.
 		addPreset("Modes",                           "music", [ ["Ionian (major)", "Dorian", "Phrygian", "Lydian", "Mixolydian", "Aeolian (minor)", "Locrian"] ])
 		addPreset("Modes (harmonic minor)",          "music", [ ["Harmonic Minor", "Locrian #6", "Ionian #5", "Dorian #4", "Phrygian Dominant", "Lydian #2", "Superlocrian"] ])
 		addPreset("Modes (harmonic minor) /w hints", "music", [ ["Harmonic Minor (minor #7)", "Locrian #6", "Ionian #5", "Dorian #4", "Phrygian Dominant (Phrygian #3)", "Lydian #2", "Superlocrian (Locrian #4)"] ])
+		addPreset("Basic Progressions",              "music", [ ['I'], ['ii', 'IV'], ['V', 'VII'], ['I', 'iii', 'vi'] ], ', ');
 	</script>
 
 	<script id="GuitarPresets">
